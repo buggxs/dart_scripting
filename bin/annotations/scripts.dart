@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:mirrors';
 
 import 'id.dart';
@@ -22,7 +23,7 @@ void main() {
   liste[liste.length] = Dog(2, 'Fred', 0);
   liste[liste.length] = Dog(3, 'Corrado', 8);
 
-  print(liste);
+  print('Map with dogs: ${liste}');
 
   // Retrieve dog 'Fred'
   Dog fred = liste[1]!;
@@ -50,7 +51,7 @@ void printAnnotationValue() {
   // Get the annotation "object" with reflectee and cast it to our [Id] class
   final myAnnotation = myVariableMirror.metadata.first.reflectee as Id;
   // Call [generationType] variable from Id-Class
-  print(myAnnotation.generationType);
+  print('generationType One: ${myAnnotation.generationType}');
 }
 
 /// Read the value from an annotation defined at a variable inside a class
@@ -66,15 +67,50 @@ void printAnnotationVariableValue(Dog fred) {
   // our Annotation-Class Id()
   final myVariableMirror =
       instanceMirror.type.declarations.entries.firstWhere((declaration) {
-    return declaration.value.metadata
-            .firstWhere((element) => element.reflectee is Id) !=
-        null;
+    return declaration.value.metadata.any((element) => element.reflectee is Id);
   }).value;
 
   final myAnnotation = myVariableMirror.metadata.first.reflectee as Id;
-  print(myAnnotation.generationType);
+  print('generationType: ${myAnnotation.generationType}');
 
   int myVariableValueId =
       instanceMirror.getField(myVariableMirror.simpleName).reflectee;
-  print(myVariableValueId);
+  print('VariableValue with annotation id: ${myVariableValueId}');
+}
+
+void dynamicMethodInvocation(Object obj, String methodName, List<dynamic> arguments) {
+  final instance = reflect(obj);
+  final method = Symbol(methodName);
+  
+  // Methode dynamisch aufrufen
+  final result = instance.invoke(method, arguments);
+  print('Ergebnis des Aufrufs von $methodName: ${result.reflectee}');
+}
+
+Map<String, dynamic> objectToMap(Object obj) {
+  final mirror = reflect(obj);
+  final classMirror = mirror.type;
+  final map = <String, dynamic>{};
+  
+  classMirror.declarations.forEach((symbol, declarationMirror) {
+    if (declarationMirror is VariableMirror && !declarationMirror.isStatic) {
+      final name = MirrorSystem.getName(symbol);
+      final value = mirror.getField(symbol).reflectee;
+      map[name] = value;
+    }
+  });
+  
+  return map;
+}
+
+String objectToJson(Object obj) {
+  final map = objectToMap(obj);
+  return jsonEncode(map);
+}
+
+// Automatic creation of object with type X
+T createInstance<T>(Type type, List<dynamic> constructorArguments) {
+  final classMirror = reflectClass(type);
+  final instance = classMirror.newInstance(Symbol(''), constructorArguments);
+  return instance.reflectee as T;
 }
